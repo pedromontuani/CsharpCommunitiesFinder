@@ -1,6 +1,6 @@
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace DesignPattern.utils;
+namespace ModularizationOportunities.utils;
 
 public static class StringUtils
 {

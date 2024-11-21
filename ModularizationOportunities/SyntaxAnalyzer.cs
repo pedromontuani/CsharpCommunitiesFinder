@@ -6,16 +6,16 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Collections.Generic;
 using System.Linq;
 
-public class MethodAnalyzer
+public class SyntaxAnalyzer
 {
     private readonly SemanticModel _semanticModel;
 
-    public MethodAnalyzer(SemanticModel semanticModel)
+    public SyntaxAnalyzer(SemanticModel semanticModel)
     {
         _semanticModel = semanticModel;
     }
 
-    public IEnumerable<INamedTypeSymbol> GetReferencedClasses(MethodDeclarationSyntax methodDeclaration)
+    public IEnumerable<INamedTypeSymbol> GetExplicitlyReferencedClasses(MethodDeclarationSyntax methodDeclaration)
     {
         var referencedClasses = new HashSet<INamedTypeSymbol>();
 
@@ -32,12 +32,29 @@ public class MethodAnalyzer
         return referencedClasses;
     }
     
-    public bool IsEntity(ClassDeclarationSyntax classDeclaration)
+    public IEnumerable<IMethodSymbol> GetCalledMethods(MethodDeclarationSyntax methodDeclaration)
+    {
+        var calledMethods = new List<IMethodSymbol>();
+
+        var invocationExpressions = methodDeclaration.DescendantNodes().OfType<InvocationExpressionSyntax>();
+        foreach (var invocation in invocationExpressions)
+        {
+            var symbolInfo = _semanticModel.GetSymbolInfo(invocation);
+            if (symbolInfo.Symbol is IMethodSymbol methodSymbol)
+            {
+                calledMethods.Add(methodSymbol);
+            }
+        }
+
+        return calledMethods;
+    }
+    
+    public static bool IsEntity(ClassDeclarationSyntax classDeclaration)
     {
         // Check for [Entity] attribute
         var hasEntityAttribute = classDeclaration.AttributeLists
             .SelectMany(al => al.Attributes)
-            .Any(a => _semanticModel.GetTypeInfo(a).Type?.Name == "Entity");
+            .Any(a => a.Name.ToString() == "Entity");
 
         if (hasEntityAttribute)
         {
@@ -46,10 +63,10 @@ public class MethodAnalyzer
 
         // Check for inheritance from EntityBase
         var baseType = classDeclaration.BaseList?.Types
-            .Select(bt => _semanticModel.GetTypeInfo(bt.Type).Type)
+            .Select(bt => bt.Type.ToString())
             .FirstOrDefault();
 
-        if (baseType != null && baseType.Name == "EntityBase")
+        if (baseType != null && baseType == "EntityBase")
         {
             return true;
         }

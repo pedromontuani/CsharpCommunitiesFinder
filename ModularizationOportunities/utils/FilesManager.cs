@@ -1,11 +1,11 @@
-namespace DesignPattern.utils;
+namespace ModularizationOportunities.utils;
 
 public static class FilesManager
 {
     
     public static bool IsValidPath(string path)
     {
-        return Directory.Exists(path) || (File.Exists(path) && path.EndsWith(".html"));
+        return Directory.Exists(path) || File.Exists(path);
     }
     
     public static bool IsFolder(string path)

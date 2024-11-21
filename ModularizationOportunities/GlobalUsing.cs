@@ -1,6 +1,2 @@
-namespace ModularizationOportunities;
-
-public class GlobalUsing
-{
-    
-}
+global using RelationshipsMatrix = System.Collections.Concurrent.ConcurrentDictionary<Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax, System.Collections.Concurrent.ConcurrentDictionary<Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax, bool>>;
+global using CommunityDictionary = System.Collections.Concurrent.ConcurrentDictionary<Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax, Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax>;

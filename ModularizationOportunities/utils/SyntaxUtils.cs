@@ -1,6 +1,7 @@
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace DesignPattern.utils;
+namespace ModularizationOportunities.utils;
 
 public class MethodDeclarationSyntaxComparer : IEqualityComparer<MethodDeclarationSyntax>
 {
@@ -15,4 +16,5 @@ public class MethodDeclarationSyntaxComparer : IEqualityComparer<MethodDeclarati
         // Define your custom hash code logic here
         return HashCode.Combine(StringUtils.GetFormattedMethodName(obj));
     }
+    
 }
