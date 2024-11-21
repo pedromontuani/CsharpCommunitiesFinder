@@ -1,2 +1,4 @@
 global using RelationshipsMatrix = System.Collections.Concurrent.ConcurrentDictionary<Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax, System.Collections.Concurrent.ConcurrentDictionary<Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax, bool>>;
-global using CommunityDictionary = System.Collections.Concurrent.ConcurrentDictionary<Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax, Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax>;
+global using CommunitiesList = System.Collections.Generic.List<System.Collections.Generic.List<int>>;
+global using ClassToNodeMapping = System.Collections.Generic.Dictionary<Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax, int>;
+global using NodeList = System.Collections.Generic.List<System.Collections.Generic.List<int>>;

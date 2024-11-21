@@ -4,89 +4,74 @@ using ModularizationOportunities.dto;
 
 namespace ModularizationOportunities;
 
-public class Analyzer
+public class Analyzer(Project msProject)
 {
     private CsFile[] _projectClasses;
-    private Project _msProject;
-    
-    public Analyzer(Project msProject)
-    {
-       _msProject = msProject;
-    }
-    
+    private readonly ClassToNodeMapping _classToNode = new ();
+    private CommunitiesList _communities;
+
     private async Task GetProjectClasses()
     {
-        _projectClasses = await Task.WhenAll(_msProject.Documents.Select(async d => new CsFile(d,
-            (await d.GetSyntaxTreeAsync()))).ToArray()) ;
+        var tasks = msProject.Documents.Select(async d => new CsFile(d,
+            (await d.GetSyntaxTreeAsync()))).ToArray();
+        
+        _projectClasses = await Task.WhenAll(tasks) ;
     }
 
     public async Task Analyze()
     {
        await GetProjectClasses();
        var classDeclarations = _projectClasses.SelectMany(c => c.classDeclarations).ToArray();
-       var couplingExtraction = new StructuralCouplingExtraction(classDeclarations, _msProject);
+       var couplingExtraction = new StructuralCouplingExtraction(classDeclarations, msProject);
        var relationshipsGraph = await couplingExtraction.GetRelationshipsGraph();
-
-       DisplayCallMatrix(relationshipsGraph);
-       DisplayComunities(relationshipsGraph);
-    }
-
-    private void DisplayCallMatrix(RelationshipsMatrix matrix)
-    {
-        foreach (var classDeclaration in matrix.Keys)
-        {
-            Console.WriteLine("");
-            Console.WriteLine("--------");
-            Console.WriteLine($"Class: {classDeclaration.Identifier.Text}");
-            foreach (var referenced in matrix[classDeclaration].Keys)
-            {
-                Console.WriteLine($"Reference: {referenced.Identifier.Text}");
-            }
-            Console.WriteLine("--------");
-        }
+       
+       var graph = GenerateGraph(relationshipsGraph);
+       _communities = FindCommunities(graph);
     }
     
-    private void DisplayComunities(RelationshipsMatrix matrix)
+    public ClassToNodeMapping GetClassToNodeMapping()
+    {
+        return _classToNode;
+    }
+    
+    public CommunitiesList GetCommunities()
+    {
+        return _communities;
+    }
+
+    private Graph GenerateGraph(RelationshipsMatrix matrix)
     {
         var graph = new Graph();
-        var classToNode = new Dictionary<ClassDeclarationSyntax, int>();
         int nodeId = 0;
 
         foreach (var classDeclaration in matrix.Keys)
         {
-            if (!classToNode.ContainsKey(classDeclaration))
+            if (!_classToNode.ContainsKey(classDeclaration))
             {
-                classToNode[classDeclaration] = nodeId;
+                _classToNode[classDeclaration] = nodeId;
                 graph.AddNode(nodeId++);
             }
 
             foreach (var referenced in matrix[classDeclaration].Keys)
             {
-                if (!classToNode.ContainsKey(referenced))
+                if (!_classToNode.ContainsKey(referenced))
                 {
-                    classToNode[referenced] = nodeId;
+                    _classToNode[referenced] = nodeId;
                     graph.AddNode(nodeId++);
                 }
-                graph.AddEdge(classToNode[classDeclaration], classToNode[referenced]);
+                graph.AddEdge(_classToNode[classDeclaration], _classToNode[referenced]);
             }
         }
-        
+
+        return graph;
+    }
+    
+    private CommunitiesList FindCommunities(Graph graph)
+    {
         var leiden = new LeidenAlgorithm(graph);
         var communities = leiden.FindCommunities();
-        
-        
-        foreach (var community in communities)
-        {
-            Console.WriteLine("Community:");
-            foreach (var node in community)
-            {
-                var classDeclaration = classToNode.FirstOrDefault(x => x.Value == node).Key;
-                Console.WriteLine($"Class: {classDeclaration.Identifier.Text}");
-            }
-            Console.WriteLine("--------");
-        }
-    }
 
-    
+        return communities;
+    }
     
 }

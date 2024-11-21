@@ -7,7 +7,7 @@ using ModularizationOportunities.utils;
 
 namespace ModularizationOportunities;
     
-class Program
+static class Program
 {
     static async Task Main(string[] args)
     {
@@ -22,6 +22,11 @@ class Program
         
         var analyzer = new Analyzer(project);
         await analyzer.Analyze();
+        
+        var classToNode = analyzer.GetClassToNodeMapping();
+        var communities = analyzer.GetCommunities();
+        
+        Report.PrintReport(communities, classToNode);
     }
     
     private static void CheckArgs(string[] args)

@@ -2,14 +2,13 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using ModularizationOportunities.dto;
-using ModularizationOportunities.enums;
 using ModularizationOportunities.utils;
 
 namespace ModularizationOportunities;
 
 public class StructuralCouplingExtraction(IEnumerable<FileClassDeclarations> classDeclarations, Project msProject)
 {
-    private readonly RelationshipsMatrix _relationshipsGraph = new RelationshipsMatrix();
+    private readonly RelationshipsMatrix _relationshipsGraph = new ();
     private readonly FileClassDeclarations[] _fileClassDeclarations = classDeclarations.ToArray();
 
     public async Task<RelationshipsMatrix> GetRelationshipsGraph()
@@ -19,17 +18,11 @@ public class StructuralCouplingExtraction(IEnumerable<FileClassDeclarations> cla
             var classDeclarationSyntax = classDeclaration.classDeclarationSyntax;
             var methodDeclarations =
                 classDeclarationSyntax.DescendantNodes().OfType<MethodDeclarationSyntax>().ToList();
-            var classTree = classDeclarationSyntax.SyntaxTree;
-            var references = await MetadataReferenceHelper.GetMetadataReferencesAsync(msProject);
-            var compilation = CSharpCompilation.Create("MyCompilation", new[] { classTree }, references);
-            var semanticModel = compilation.GetSemanticModel(classTree);
-
-            var syntaxAnalizer = new SyntaxAnalyzer(semanticModel);
+            var syntaxAnalizer = await GetSyntaxAnalyzer(classDeclarationSyntax);
 
             foreach (var method in methodDeclarations)
             {
                 var referencedClasses = await GetReferencedClasses(method, syntaxAnalizer);
-
                 if (referencedClasses.Length > 0)
                 {
                     AssertRelationship(classDeclarationSyntax, referencedClasses, syntaxAnalizer);
@@ -40,12 +33,23 @@ public class StructuralCouplingExtraction(IEnumerable<FileClassDeclarations> cla
         return _relationshipsGraph;
     }
 
+    private async Task<SyntaxAnalyzer> GetSyntaxAnalyzer(ClassDeclarationSyntax classDeclarationSyntax)
+    {
+        var classTree = classDeclarationSyntax.SyntaxTree;
+        var references = await MetadataReferenceHelper.GetMetadataReferencesAsync(msProject);
+        var compilation = CSharpCompilation.Create("MyCompilation", new[] { classTree }, references);
+        var semanticModel = compilation.GetSemanticModel(classTree);
+
+        return new SyntaxAnalyzer(semanticModel);
+    }
+
     private async Task<ClassDeclarationSyntax[]> GetReferencedClasses(MethodDeclarationSyntax method, SyntaxAnalyzer analyzer)
     {
         var referencedClasses = analyzer.GetExplicitlyReferencedClasses(method);
         var calledMethods = analyzer.GetCalledMethods(method);
-        var calledMethodsClasses = calledMethods.Select(m => ClassDeclarationSyntaxHelper.GetClassDeclarationSyntax(m)).ToArray();
-        var classDeclarations = referencedClasses.Select(r => ClassDeclarationSyntaxHelper.GetClassDeclarationSyntax(r))
+        
+        var calledMethodsClasses = calledMethods.Select(ClassDeclarationSyntaxHelper.GetClassDeclarationSyntax).ToArray();
+        var classDeclarations = referencedClasses.Select(ClassDeclarationSyntaxHelper.GetClassDeclarationSyntax)
             .ToArray();
 
         var concatenated = classDeclarations.Concat(calledMethodsClasses);
@@ -54,40 +58,20 @@ public class StructuralCouplingExtraction(IEnumerable<FileClassDeclarations> cla
 
         var filteredResults = await Task.WhenAll(filteredTasks);
         
-        return filteredResults.Where(result => result.IsPresent).Select(result => result.Class).ToArray();
+        return filteredResults.Where(result => result.IsPresent)
+            .Select(result => result.Class).ToArray()!;
     }
     
     private void AssertRelationship(ClassDeclarationSyntax classDeclaration, ClassDeclarationSyntax[] referencedClasses, SyntaxAnalyzer analyzer)
     {
         foreach (var referencedClass in referencedClasses)
         {
-            
             if(!_relationshipsGraph.ContainsKey(classDeclaration))
             {
                 _relationshipsGraph.TryAdd(classDeclaration, new());
             }
             
             _relationshipsGraph[classDeclaration][referencedClass] = true;
-
         }
-    }
-    
-    private RelationshipType GetRelationshipType(ClassDeclarationSyntax classDeclaration, ClassDeclarationSyntax referencedClass)
-    {
-        var classIsEntity = SyntaxAnalyzer.IsEntity(classDeclaration);
-        var referencedIsEntity = SyntaxAnalyzer.IsEntity(referencedClass);
-
-        if (!classIsEntity && !referencedIsEntity)
-        {
-            return RelationshipType.METHOD_TO_METHOD;
-        }
-
-        if (classIsEntity && referencedIsEntity)
-        {
-            return RelationshipType.ENTITY_TO_ENTITY;
-        }
-        
-        return RelationshipType.METHOD_TO_ENTITY;
-        
     }
 }

@@ -1,19 +1,11 @@
 namespace ModularizationOportunities;
 
-public class LeidenAlgorithm
+public class LeidenAlgorithm(Graph graph)
 {
-    private Graph _graph;
-    private Dictionary<int, int> _nodeToCommunity;
-    private Dictionary<int, List<int>> _communityToNodes;
+    private readonly Dictionary<int, int> _nodeToCommunity = new();
+    private readonly Dictionary<int, List<int>> _communityToNodes = new();
 
-    public LeidenAlgorithm(Graph graph)
-    {
-        _graph = graph;
-        _nodeToCommunity = new Dictionary<int, int>();
-        _communityToNodes = new Dictionary<int, List<int>>();
-    }
-
-    public List<List<int>> FindCommunities()
+    public NodeList FindCommunities()
     {
         InitializeCommunities();
         bool improvement = true;
@@ -22,13 +14,13 @@ public class LeidenAlgorithm
         {
             improvement = false;
 
-            foreach (var node in _graph.Nodes)
+            foreach (var node in graph.Nodes)
             {
                 int currentCommunity = _nodeToCommunity[node];
                 var bestCommunity = currentCommunity;
                 double bestGain = 0;
 
-                foreach (var neighbor in _graph.GetNeighbors(node))
+                foreach (var neighbor in graph.GetNeighbors(node))
                 {
                     int neighborCommunity = _nodeToCommunity[neighbor];
                     if (neighborCommunity != currentCommunity)
@@ -55,7 +47,7 @@ public class LeidenAlgorithm
 
     private void InitializeCommunities()
     {
-        foreach (var node in _graph.Nodes)
+        foreach (var node in graph.Nodes)
         {
             _nodeToCommunity[node] = node;
             _communityToNodes[node] = new List<int> { node };
@@ -64,9 +56,13 @@ public class LeidenAlgorithm
 
     private double CalculateModularityGain(int node, int community)
     {
-        // Implement modularity gain calculation
-        // This is a placeholder implementation
-        return new Random().NextDouble();
+        double m = graph.Edges.Count;
+        double k_i_in = graph.GetNeighbors(node).Count(neighbor => _nodeToCommunity[neighbor] == community);
+        double k_i = graph.GetNeighbors(node).Count;
+        double sum_tot = _communityToNodes[community].Sum(n => graph.GetNeighbors(n).Count);
+
+        double deltaQ = (k_i_in / m) - (sum_tot * k_i) / (2 * m * m);
+        return deltaQ;
     }
 
     private void MoveNodeToCommunity(int node, int newCommunity)
